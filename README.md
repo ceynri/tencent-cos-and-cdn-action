@@ -27,7 +27,7 @@ This action can upload files to tencent cloud COS, and flush CDN cache.
 - cdn_prefix: 若你使用腾讯云 CDN，此处填写 CDN 的 URL 前缀。若为空，则不刷新 CDN 缓存
 - local_path(**必填**): 将要上传到 COS 的本地路径。可为文件夹或单个文件
 - remote_path(**必填**): 将文件上传到 COS 的指定路径
-- storage_class：指定 COS 桶的存储类型。默认为 STANDARD（标准存储）。具体取值可见[存储类型参数](https://cloud.tencent.com/document/product/436/33417)
+- storage_class：指定 COS 桶的存储类型。默认为 STANDARD（标准存储），具体取值可见[存储类型参数](https://cloud.tencent.com/document/product/436/33417)
 - clean: 设为`true`将会清除 COS 上不存在于本地的文件。默认为 false
 
 ## Demo
