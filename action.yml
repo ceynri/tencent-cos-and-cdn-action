@@ -28,6 +28,9 @@ inputs:
   remote_path:
     description: 'COS path to put the local files in on COS'
     required: true
+  storage_class:
+    description: 'COS bucket storage class. Default is STANDARD'
+    required: false
   clean:
     description: 'Set to true for cleaning files on COS path which are not existed in local path. Default is false'
     required: false
