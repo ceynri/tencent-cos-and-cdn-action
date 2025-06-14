@@ -96751,6 +96751,7 @@ class COS {
       "cos_region",
       "local_path",
       "remote_path",
+      "storage_class",
       "clean",
     ];
   }
@@ -96768,6 +96769,7 @@ class COS {
     this.region = inputs.cos_region;
     this.localPath = inputs.local_path;
     this.remotePath = inputs.remote_path;
+    this.storageClass = inputs.storage_class || "STANDARD";
     this.clean = inputs.clean === "true";
   }
 
@@ -96778,7 +96780,7 @@ class COS {
           Bucket: this.bucket,
           Region: this.region,
           Key: path.join(this.remotePath, p),
-          StorageClass: "STANDARD",
+          StorageClass: this.storageClass,
           Body: fs.createReadStream(path.join(this.localPath, p)),
         },
         function (err, data) {
