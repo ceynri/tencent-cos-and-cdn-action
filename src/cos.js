@@ -268,7 +268,7 @@ class COS {
 
       this.cos.on('list-update', handleListUpdate);
 
-      for (const file of localFiles) {
+      localFiles.forEach(async (file) => {
         const { objectKey, localPath } = this.generateFileInfo(file);
         const shoudUpload = await this.shouldUploadFile(file, objectKey, localPath);
         if (shoudUpload === FILE_EXISTS) {
@@ -279,7 +279,7 @@ class COS {
           this.uploadFile(objectKey, localPath);
           changedFiles.push(file);
         }
-      }
+      });
     });
   }
 
