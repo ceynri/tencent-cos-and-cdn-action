@@ -46,6 +46,9 @@ inputs:
   cdn_wait_flush:
     description: 'Whether to wait for CDN refresh to complete. Defaults is false'
     required: false
+  cdn_purge_index_as_dir:
+    description: 'Set to true to also purge the directory URL (e.g. "path/" instead of "path/index.html") whenever an index.html file changes. Useful for static sites where visitors omit the "index.html" suffix. Default is false'
+    required: false
   eo_zone:
     description: 'EO zone ID if you are using Tencent Cloud EdgeOne CDN. Default is empty'
     required: false

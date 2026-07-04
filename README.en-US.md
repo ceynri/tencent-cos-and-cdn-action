@@ -27,6 +27,7 @@ This action can upload files to tencent cloud COS, and flush CDN cache (support 
 - `cos_replace_rules`: Set different replacement rules for different files, see the following instructions for detailed settings
 - `cos_file_check_concurrent`: When `cos_replace_file` is not `true`, check whether the file needs to be uploaded concurrently. Default is CPU cores * 2
 - `cdn_wait_flush`: Whether to wait for CDN refresh to complete. Default is `false`
+- `cdn_purge_index_as_dir`: Set to `true` to also purge the directory URL (e.g. `path/` instead of `path/index.html`) whenever an `index.html` file changes, in addition to the file's own URL. Useful for static sites where visitors typically omit the `index.html` suffix — without this option, such paths' CDN cache would not be purged. Default is `false`
 - `eo_zone`: The Zone ID if you are using Tencent Cloud EdgeOne. If is empty, this action will not flush CDN cache.
 - `remote_path`: COS path to put the local files in on COS. Default is `(empty string)`
 - `clean`: Set to `true` for cleaning files on COS path which are not existed in local path. Default is `false`

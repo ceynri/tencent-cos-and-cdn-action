@@ -18,7 +18,8 @@ class CDN {
       "cdn_prefix",
       "clean",
       "eo_zone",
-      "cdn_wait_flush"
+      "cdn_wait_flush",
+      "cdn_purge_index_as_dir"
     ];
   }
 
@@ -47,6 +48,7 @@ class CDN {
     this.type = inputs.cdn_type || 'cdn';
     this.clean = inputs.clean === 'true' || inputs.clean === true;
     this.waitFlush = inputs.cdn_wait_flush === 'true' || inputs.cdn_wait_flush === true;
+    this.purgeIndexAsDir = inputs.cdn_purge_index_as_dir === 'true' || inputs.cdn_purge_index_as_dir === true;
     this.cdnPrefix = inputs.cdn_prefix || '';
     this.remotePath = normalizeObjectKey(inputs.remote_path || '');
 
@@ -64,6 +66,16 @@ class CDN {
 
   createUrl(file = "") {
     return this.cdnPrefix + normalizeObjectKey(this.remotePath + '/' + file);
+  }
+
+  // 将形如 "path/to/index.html" 的文件路径转换为其所在目录路径 "path/to/"
+  // 用于静态站点场景：用户访问时通常省略 index.html（如 "/path/to/"），
+  // 但上传的对象 key 是 "path/to/index.html"，两者是不同的 CDN 缓存 key
+  getIndexDirPath(file) {
+    if (path.basename(file) !== 'index.html') {
+      return undefined;
+    }
+    return file.slice(0, file.length - 'index.html'.length);
   }
 
   async purgeAll() {
@@ -139,8 +151,18 @@ class CDN {
       taskId = await this.purgeAll();
     } else {
       // 清空部分缓存
-      console.log(`[cdn] flush ${changedFiles.length} CDN caches`);
-      taskId = await this.purgeUrls(changedFiles.map((it) => this.createUrl(it)));
+      const urls = changedFiles.map((it) => this.createUrl(it));
+      if (this.purgeIndexAsDir) {
+        // 对每个 index.html，额外刷新其所在目录（不带 index.html）对应的 URL
+        changedFiles.forEach((it) => {
+          const dirPath = this.getIndexDirPath(it);
+          if (dirPath !== undefined) {
+            urls.push(this.createUrl(dirPath));
+          }
+        });
+      }
+      console.log(`[cdn] flush ${urls.length} CDN caches`);
+      taskId = await this.purgeUrls(urls);
     }
     console.log(`[cdn] task id: ${taskId}`);
     if (taskId && this.waitFlush) {
