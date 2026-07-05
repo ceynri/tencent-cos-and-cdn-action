@@ -28,6 +28,8 @@
 - `cdn_prefix`: 若你使用腾讯云 CDN 或 EdgeOne，此处填写 CDN 的 URL 前缀。若为空，则不刷新 CDN 缓存
 - `cdn_wait_flush`: 是否等待 CDN 刷新完成。默认为`false`
 - `cdn_purge_index_as_dir`: 设为`true`后，当`index.html`发生变更时，除了刷新该文件本身的 URL，还会额外刷新其所在目录的 URL（如`path/`而非`path/index.html`）。适用于静态站点场景——用户访问时通常省略`index.html`，若不开启此项，这类路径对应的 CDN 缓存不会被刷新。默认为`false`
+- `cdn_purge_strategy`: CDN 刷新策略。`url`（默认）仅精确刷新变更文件；`path` 强制目录刷新，不依赖增量 diff 准确性，可根治 CDN 缓存漂移（如上次部署刷新失败的情况）。默认为`url`
+- `cdn_flush_type`: PurgePathCache 的 FlushType。`delete`（默认）直接删除缓存；`flush` 回源比对 Last-Modify，仅变更资源才重拉取，回源压力更小。仅在 `purge_strategy` 为 `path` 或 `clean`/大批量变更触发 `purgeAll` 时生效。默认为`delete`
 - `eo_zone`: 若你使用腾讯云 EdgeOne，此处填写 EdgeOne 的 Zone ID。若为空，则不刷新 CDN 缓存
 - `remote_path`: 将文件上传到 COS 的指定路径。默认为`(空字符串)`
 - `clean`: 设为`true`将会清除 COS 上不存在于本地的文件，会增加少量读请求和相应的删除（写）请求。默认为`false`

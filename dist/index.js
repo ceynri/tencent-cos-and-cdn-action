@@ -117155,7 +117155,9 @@ class CDN {
       "clean",
       "eo_zone",
       "cdn_wait_flush",
-      "cdn_purge_index_as_dir"
+      "cdn_purge_index_as_dir",
+      "cdn_purge_strategy",
+      "cdn_flush_type"
     ];
   }
 
@@ -117185,6 +117187,10 @@ class CDN {
     this.clean = inputs.clean === 'true' || inputs.clean === true;
     this.waitFlush = inputs.cdn_wait_flush === 'true' || inputs.cdn_wait_flush === true;
     this.purgeIndexAsDir = inputs.cdn_purge_index_as_dir === 'true' || inputs.cdn_purge_index_as_dir === true;
+    // 刷新策略：url=精确刷新变更文件；path=强制目录刷新（根治 CDN 缓存漂移）
+    this.purgeStrategy = inputs.cdn_purge_strategy || 'url';
+    // PurgePathCache 的 FlushType：delete=刷新全部资源；flush=刷新变更资源（回源比对 Last-Modify）
+    this.flushType = inputs.cdn_flush_type || 'delete';
     this.cdnPrefix = inputs.cdn_prefix || '';
     this.remotePath = normalizeObjectKey(inputs.remote_path || '');
 
@@ -117224,7 +117230,7 @@ class CDN {
       return JobId;
     }
     const { TaskId } = await this.client.PurgePathCache({
-      FlushType: "delete",
+      FlushType: this.flushType,
       Paths: [this.createUrl()],
     });
     return TaskId;
@@ -117282,7 +117288,10 @@ class CDN {
       return;
     }
     let taskId = undefined;
-    if (this.clean || changedFiles.length > 200) {
+    if (this.purgeStrategy === 'path') {
+      console.log(`[cdn] flush path cache (strategy: path, flushType: ${this.flushType})`);
+      taskId = await this.purgeAll();
+    } else if (this.clean || changedFiles.length > 200) {
       console.log('[cdn] flush all CDN cache');
       taskId = await this.purgeAll();
     } else {

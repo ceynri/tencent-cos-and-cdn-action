@@ -49,6 +49,12 @@ inputs:
   cdn_purge_index_as_dir:
     description: 'Set to true to also purge the directory URL (e.g. "path/" instead of "path/index.html") whenever an index.html file changes. Useful for static sites where visitors omit the "index.html" suffix. Default is false'
     required: false
+  cdn_purge_strategy:
+    description: 'CDN purge strategy. "url" (default) purges only changed files via PurgeUrlsCache; "path" forces directory purge via PurgePathCache, which is more robust against CDN cache drift (e.g. when a previous deployment failed to flush). Default is url'
+    required: false
+  cdn_flush_type:
+    description: 'FlushType for PurgePathCache. "delete" (default) purges all cached resources; "flush" revalidates with origin via Last-Modify and only refetches changed resources. Only effective when purgeStrategy is "path" or when clean/large-change triggers purgeAll. Default is delete'
+    required: false
   eo_zone:
     description: 'EO zone ID if you are using Tencent Cloud EdgeOne CDN. Default is empty'
     required: false
