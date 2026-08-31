@@ -34,6 +34,9 @@ inputs:
   cos_replace_rules:
     description: 'Set different replacement rules for different files'
     required: false
+  cos_content_type_rules:
+    description: 'Set Content-Type by file name or regexp. First match wins. Example: [{"match":"\\.md$","contentType":"text/markdown; charset=utf-8"}]'
+    required: false
   cos_file_check_concurrent:
     description: 'Check whether the file needs to be uploaded concurrently'
     required: false

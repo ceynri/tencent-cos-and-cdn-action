@@ -117345,6 +117345,12 @@ const { normalizeObjectKey } = __nccwpck_require__(30066);
 const FILE_EXISTS = Symbol("file_exists");
 const HEAD_FAILED = Symbol("head_failed");
 
+function normalizeContentType(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/\s+/g, "");
+}
+
 function getThreadCount() {
   try {
     return 2 * os.cpus().length;
@@ -117377,6 +117383,7 @@ class COS {
       "cos_put_options",
       "cos_replace_file",
       "cos_replace_rules",
+      "cos_content_type_rules",
       "cos_file_check_concurrent",
       "cos_bucket",
       "cos_region",
@@ -117445,6 +117452,10 @@ class COS {
     this.remotePath = normalizeObjectKey(inputs.remote_path || "");
     this.replace = inputs.cos_replace_file || "true";
     this.replaceRules = getJSONInput(inputs.cos_replace_rules, []);
+    this.contentTypeRules = getJSONInput(inputs.cos_content_type_rules, []);
+    if (!Array.isArray(this.contentTypeRules)) {
+      this.contentTypeRules = [];
+    }
     this.clean = inputs.clean === "true" || inputs.clean === true;
     this.checkConcurrent = Number(inputs.cos_file_check_concurrent);
     if (Number.isNaN(this.checkConcurrent) || this.checkConcurrent <= 0) {
@@ -117452,14 +117463,47 @@ class COS {
     }
     this.putOptions = getJSONInput(inputs.cos_put_options);
     console.log("[cos] Put options:", this.putOptions);
+    console.log("[cos] Content-Type rules:", this.contentTypeRules);
   }
 
-  uploadFile(key, file) {
+  getContentType(p) {
+    const res = this.contentTypeRules.find((rule) => {
+      if (!rule || !rule.contentType) {
+        return false;
+      }
+      if (rule.name) {
+        return rule.name === p;
+      }
+      if (rule.match) {
+        try {
+          const match = new RegExp(rule.match);
+          return match.test(p);
+        } catch (e) {
+          console.log("[cos] Invalid regexp:", rule.match);
+        }
+      }
+      return false;
+    });
+    return res ? res.contentType : undefined;
+  }
+
+  needsContentTypeUpdate(basePath, headers) {
+    const wanted = this.getContentType(basePath);
+    if (!wanted) {
+      return false;
+    }
+    const actual = headers && (headers["content-type"] || headers["Content-Type"]);
+    return normalizeContentType(actual) !== normalizeContentType(wanted);
+  }
+
+  uploadFile(key, file, basePath) {
+    const contentType = this.getContentType(basePath || key);
     return new Promise((resolve, reject) => {
       this.cos.uploadFile(
         {
           StorageClass: "STANDARD",
           ...this.putOptions,
+          ...(contentType ? { ContentType: contentType } : {}),
           Bucket: this.bucket,
           Region: this.region,
           Key: key,
@@ -117567,10 +117611,22 @@ class COS {
         `[cos] [shouldUploadFile] ${basePath} crc64ecma is: local ${cur} remote ${exist}`
       );
       if (exist === cur) {
+        if (this.needsContentTypeUpdate(basePath, info.headers)) {
+          core.debug(
+            `[cos] [shouldUploadFile] ${basePath} content-type mismatch: remote ${info.headers["content-type"]} wanted ${this.getContentType(basePath)}`
+          );
+          return true;
+        }
         return FILE_EXISTS;
       } else {
         return true;
       }
+    }
+    if (this.needsContentTypeUpdate(basePath, info.headers)) {
+      core.debug(
+        `[cos] [shouldUploadFile] ${basePath} content-type mismatch: remote ${info.headers["content-type"]} wanted ${this.getContentType(basePath)}`
+      );
+      return true;
     }
     // file exists, do not upload
     return FILE_EXISTS;
@@ -117672,7 +117728,7 @@ class COS {
           onFileFinish("skipped(head failed)", objectKey);
         } else {
           changedFiles.push(file);
-          this.uploadFile(objectKey, localPath);
+          this.uploadFile(objectKey, localPath, file);
         }
       }, this.checkConcurrent);
 
