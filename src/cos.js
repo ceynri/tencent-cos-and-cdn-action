@@ -16,6 +16,35 @@ function normalizeContentType(value) {
     .replace(/\s+/g, "");
 }
 
+function fileExtension(filePath) {
+  const base = path.basename(String(filePath || ""));
+  const dot = base.lastIndexOf(".");
+  if (dot <= 0 || dot === base.length - 1) {
+    return "";
+  }
+  return base.slice(dot + 1).toLowerCase();
+}
+
+function normalizeContentTypeMap(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return {};
+  }
+  const map = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (!value) {
+      continue;
+    }
+    const ext = String(key)
+      .trim()
+      .replace(/^\./, "")
+      .toLowerCase();
+    if (ext) {
+      map[ext] = String(value);
+    }
+  }
+  return map;
+}
+
 function getThreadCount() {
   try {
     return 2 * os.cpus().length;
@@ -48,7 +77,7 @@ class COS {
       "cos_put_options",
       "cos_replace_file",
       "cos_replace_rules",
-      "cos_content_type_rules",
+      "cos_content_types",
       "cos_file_check_concurrent",
       "cos_bucket",
       "cos_region",
@@ -117,10 +146,9 @@ class COS {
     this.remotePath = normalizeObjectKey(inputs.remote_path || "");
     this.replace = inputs.cos_replace_file || "true";
     this.replaceRules = getJSONInput(inputs.cos_replace_rules, []);
-    this.contentTypeRules = getJSONInput(inputs.cos_content_type_rules, []);
-    if (!Array.isArray(this.contentTypeRules)) {
-      this.contentTypeRules = [];
-    }
+    this.contentTypes = normalizeContentTypeMap(
+      getJSONInput(inputs.cos_content_types, {})
+    );
     this.clean = inputs.clean === "true" || inputs.clean === true;
     this.checkConcurrent = Number(inputs.cos_file_check_concurrent);
     if (Number.isNaN(this.checkConcurrent) || this.checkConcurrent <= 0) {
@@ -128,28 +156,15 @@ class COS {
     }
     this.putOptions = getJSONInput(inputs.cos_put_options);
     console.log("[cos] Put options:", this.putOptions);
-    console.log("[cos] Content-Type rules:", this.contentTypeRules);
+    console.log("[cos] Content-Type map:", this.contentTypes);
   }
 
   getContentType(p) {
-    const res = this.contentTypeRules.find((rule) => {
-      if (!rule || !rule.contentType) {
-        return false;
-      }
-      if (rule.name) {
-        return rule.name === p;
-      }
-      if (rule.match) {
-        try {
-          const match = new RegExp(rule.match);
-          return match.test(p);
-        } catch (e) {
-          console.log("[cos] Invalid regexp:", rule.match);
-        }
-      }
-      return false;
-    });
-    return res ? res.contentType : undefined;
+    const ext = fileExtension(p);
+    if (!ext) {
+      return undefined;
+    }
+    return this.contentTypes[ext];
   }
 
   needsContentTypeUpdate(basePath, headers) {
