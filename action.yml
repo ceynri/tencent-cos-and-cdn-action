@@ -35,7 +35,7 @@ inputs:
     description: 'Set different replacement rules for different files'
     required: false
   cos_content_types:
-    description: 'JSON object mapping file extension to Content-Type. Example: {"md":"text/markdown; charset=utf-8","txt":"text/plain; charset=utf-8"}'
+    description: 'Map file extension to Content-Type. JSON object, YAML mapping, or YAML list of maps. Example: md: "text/markdown; charset=utf-8"'
     required: false
   cos_file_check_concurrent:
     description: 'Check whether the file needs to be uploaded concurrently'

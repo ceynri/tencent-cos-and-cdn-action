@@ -117360,12 +117360,89 @@ function fileExtension(filePath) {
   return base.slice(dot + 1).toLowerCase();
 }
 
-function normalizeContentTypeMap(raw) {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+function unquoteYamlScalar(value) {
+  const text = String(value || "").trim();
+  if (
+    (text.startsWith('"') && text.endsWith('"')) ||
+    (text.startsWith("'") && text.endsWith("'"))
+  ) {
+    return text.slice(1, -1);
+  }
+  return text;
+}
+
+function flattenContentTypes(raw) {
+  if (!raw) {
     return {};
   }
+  if (Array.isArray(raw)) {
+    const merged = {};
+    for (const item of raw) {
+      if (item && typeof item === "object" && !Array.isArray(item)) {
+        Object.assign(merged, item);
+      }
+    }
+    return merged;
+  }
+  if (typeof raw === "object") {
+    return raw;
+  }
+  return {};
+}
+
+function parseSimpleYamlContentTypes(text) {
   const map = {};
-  for (const [key, value] of Object.entries(raw)) {
+  const list = [];
+  let kind = null;
+  for (const line of String(text).split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) {
+      continue;
+    }
+    if (trimmed.startsWith("- ")) {
+      if (kind === "map") {
+        continue;
+      }
+      kind = "list";
+      const item = trimmed.slice(2).trim();
+      const matched = item.match(/^(\.?[\w.-]+)\s*:\s*(.*)$/);
+      if (matched) {
+        list.push({ [matched[1]]: unquoteYamlScalar(matched[2]) });
+      }
+      continue;
+    }
+    const matched = trimmed.match(/^(\.?[\w.-]+)\s*:\s*(.*)$/);
+    if (!matched || kind === "list") {
+      continue;
+    }
+    kind = "map";
+    map[matched[1]] = unquoteYamlScalar(matched[2]);
+  }
+  return kind === "list" ? list : map;
+}
+
+function parseContentTypesInput(input) {
+  if (input == null || input === "") {
+    return {};
+  }
+  if (typeof input === "object") {
+    return flattenContentTypes(input);
+  }
+  const text = String(input).trim();
+  if (!text) {
+    return {};
+  }
+  try {
+    return flattenContentTypes(JSON.parse(text));
+  } catch {
+    return flattenContentTypes(parseSimpleYamlContentTypes(text));
+  }
+}
+
+function normalizeContentTypeMap(raw) {
+  const source = flattenContentTypes(raw);
+  const map = {};
+  for (const [key, value] of Object.entries(source)) {
     if (!value) {
       continue;
     }
@@ -117482,7 +117559,7 @@ class COS {
     this.replace = inputs.cos_replace_file || "true";
     this.replaceRules = getJSONInput(inputs.cos_replace_rules, []);
     this.contentTypes = normalizeContentTypeMap(
-      getJSONInput(inputs.cos_content_types, {})
+      parseContentTypesInput(inputs.cos_content_types)
     );
     this.clean = inputs.clean === "true" || inputs.clean === true;
     this.checkConcurrent = Number(inputs.cos_file_check_concurrent);

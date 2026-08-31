@@ -25,7 +25,7 @@ This action can upload files to tencent cloud COS, and flush CDN cache (support 
   - `size` Replace files with inconsistent sizes
   - `crc64ecma` Replace changed files through crc64ecma comparison
 - `cos_replace_rules`: Set different replacement rules for different files, see the following instructions for detailed settings
-- `cos_content_types`: Map file extensions to `Content-Type` (including charset). JSON object whose keys are extensions (`md` or `.md`) and values are full MIME types. Even when `crc64ecma` finds unchanged content, a mismatch against the remote Content-Type still triggers a re-upload to refresh object metadata.
+- `cos_content_types`: Map file extensions to `Content-Type` (including charset). GitHub Actions `with` only accepts strings, so pass a JSON object or a YAML mapping/list via `|`. Keys are extensions (`md` or `.md`). Even when `crc64ecma` finds unchanged content, a mismatch against the remote Content-Type still triggers a re-upload to refresh object metadata.
 - `cos_file_check_concurrent`: When `cos_replace_file` is not `true`, check whether the file needs to be uploaded concurrently. Default is CPU cores * 2
 - `cdn_wait_flush`: Whether to wait for CDN refresh to complete. Default is `false`
 - `cdn_purge_index_as_dir`: Set to `true` to also purge the directory URL (e.g. `path/` instead of `path/index.html`) whenever an `index.html` file changes, in addition to the file's own URL. Useful for static sites where visitors typically omit the `index.html` suffix — without this option, such paths' CDN cache would not be purged. Default is `false`
@@ -149,7 +149,17 @@ In the `with` parameter, `cos_replace_rules` is a JSON string:
 
 COS infers MIME from the file extension and typically omits `charset`. Browsers then guess encoding for unlabeled `text/*` responses. Use `cos_content_types` to write the full Content-Type at upload time.
 
-In the configuration file it is an object:
+GitHub Actions `with` **cannot nest YAML**, so this cannot be a child map/list under `cos_content_types:`. Wrap a mapping in `|`:
+```yaml
+- name: Tencent COS and CDN
+  uses: sylingd/tencent-cos-and-cdn-action@v1
+  with:
+    cos_content_types: |
+      md: "text/markdown; charset=utf-8"
+      txt: "text/plain; charset=utf-8"
+```
+
+A YAML list (`- md: ...`) or JSON object is also accepted. In the config file it is a real object:
 ```json
 {
   "cos_content_types": {
@@ -157,18 +167,6 @@ In the configuration file it is an object:
     "txt": "text/plain; charset=utf-8"
   }
 }
-```
-
-In the `with` parameter it is a JSON string (multiline is fine):
-```yaml
-- name: Tencent COS and CDN
-  uses: sylingd/tencent-cos-and-cdn-action@v1
-  with:
-    cos_content_types: |
-      {
-        "md": "text/markdown; charset=utf-8",
-        "txt": "text/plain; charset=utf-8"
-      }
 ```
 
 Extensions are case-insensitive; a leading dot is optional (`md` and `.md` are the same). Files not listed keep COS's default MIME.

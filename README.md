@@ -23,7 +23,7 @@
   - `size` 替换大小不一致的文件
   - `crc64ecma` 通过crc64ecma对比，替换有变更的文件
 - `cos_replace_rules`: 为不同文件设置不同的替换规则，详细设置方式见下方说明。
-- `cos_content_types`: 按文件后缀设置 `Content-Type`（含 charset）。值为 JSON 对象，key 是后缀（`md` 或 `.md` 均可），value 是完整 MIME。即使 `crc64ecma` 判定内容未变，只要远端 Content-Type 与映射不一致仍会重传以更新元数据。
+- `cos_content_types`: 按文件后缀设置 `Content-Type`（含 charset）。GitHub Actions 的 `with` 只能收字符串，因此写成 JSON 对象或 YAML 映射/列表（用 `|` 包起来）。key 是后缀（`md` 或 `.md` 均可）。即使 `crc64ecma` 判定内容未变，只要远端 Content-Type 与映射不一致仍会重传以更新元数据。
 - `cos_file_check_concurrent`: 当`cos_replace_file`不为`true`时，检查文件是否需要上传的并发量。默认为CPU核心数*2
 - `cdn_type`: CDN 类型，可选普通CDN（`cdn`）或 EdgeOne CDN（`eo`）。默认为`cdn`
 - `cdn_prefix`: 若你使用腾讯云 CDN 或 EdgeOne，此处填写 CDN 的 URL 前缀。若为空，则不刷新 CDN 缓存
@@ -149,7 +149,17 @@
 
 COS 按扩展名推断 MIME 时通常不含 `charset`。浏览器对无 charset 的 `text/*` 会按系统区域猜编码，中文 Windows 上常见乱码。通过 `cos_content_types` 可在上传时按后缀写入完整 Content-Type。
 
-在配置文件中为对象：
+GitHub Actions 的 `with` **不能嵌套 YAML**，所以不能直接写成 `cos_content_types:` 下面再挂 `- md:`。用 `|` 把映射写成字符串即可：
+```yaml
+- name: Tencent COS and CDN
+  uses: sylingd/tencent-cos-and-cdn-action@v1
+  with:
+    cos_content_types: |
+      md: "text/markdown; charset=utf-8"
+      txt: "text/plain; charset=utf-8"
+```
+
+也接受 YAML 列表（`- md: ...`）或 JSON 对象。配置文件里则是真正的对象：
 ```json
 {
   "cos_content_types": {
@@ -157,18 +167,6 @@ COS 按扩展名推断 MIME 时通常不含 `charset`。浏览器对无 charset 
     "txt": "text/plain; charset=utf-8"
   }
 }
-```
-
-在`with`参数中为 JSON 字符串（可用多行）：
-```yaml
-- name: Tencent COS and CDN
-  uses: sylingd/tencent-cos-and-cdn-action@v1
-  with:
-    cos_content_types: |
-      {
-        "md": "text/markdown; charset=utf-8",
-        "txt": "text/plain; charset=utf-8"
-      }
 ```
 
 后缀大小写不敏感；key 可带或不带前导点（`md` 与 `.md` 等价）。未出现在映射中的文件仍走 COS 默认 MIME。
